@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the imported course PDFs can be handed to other apps; nothing else in files/. -->
+<paths>
+    <files-path name="courses" path="courses/" />
+</paths>
