@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Only the imported course PDFs can be handed to other apps; nothing else in files/. -->
+<!-- What other apps may be handed: the imported course PDFs (to PDF viewers) and a
+     downloaded update (to the package installer). Nothing else in the app's storage. -->
 <paths>
     <files-path name="courses" path="courses/" />
+    <cache-path name="updates" path="updates/" />
 </paths>

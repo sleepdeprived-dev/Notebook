@@ -12,13 +12,17 @@ A study organiser for university students, built for the CSIE program at ASE Buc
   - Coloured tags on subjects and folders, with a filter on the Courses screen
   - Pin subjects, folders and PDFs to the top
   - Rename and delete everything
+- **To Do.** Tasks with an optional subject and due date, sorted by deadline, with overdue ones highlighted. Swipe to delete (with Undo), tick to complete.
 - **Settings.** Light, dark or automatic theme. Accent colour that matches Android's wallpaper colours, or one of red, orange, yellow, green, blue or purple.
-- **Tests** and **To Do**: coming next.
+- **In-app updates.** Settings → Updates checks this repo's latest release, downloads it (verifying its SHA-256) and hands it to Android's installer.
+- **Tests**: coming next.
 
 ## Installing
 
 1. Download `Notebook-v*.apk` from [Releases](https://github.com/sleepdeprived-dev/Notebook/releases).
 2. Open it on your phone and allow installing from that source when asked.
+
+From v1.1.0 on, newer versions can be installed from **Settings → Updates** inside the app. Your data is kept.
 
 ## Building
 
