@@ -12,10 +12,12 @@ A study organiser for university students, built for the CSIE program at ASE Buc
   - Coloured tags on subjects and folders, with a filter on the Courses screen
   - Pin subjects, folders and PDFs to the top
   - Rename and delete everything
-- **To Do.** Tasks with an optional subject and due date, sorted by deadline, with overdue ones highlighted. Swipe to delete (with Undo), tick to complete.
+- **Tests.** Exams, colloquia and deadlines with a date, optional time, subject and notes. The next one is shown big with a countdown. Enter your grade once it's over to see averages per subject. "Add a study task" puts a linked task in To Do.
+- **To Do.** Tasks with an optional subject, due date and time, sorted by deadline, with overdue ones highlighted. Tests in the coming week are listed on top. Swipe to delete (with Undo), tick to complete.
+- **Filter by subject** on both Tests and To Do.
+- **Reminders.** A notification the evening before a test and on the morning of it, and when a task is due. Can be turned off in Settings.
 - **Settings.** Light, dark or automatic theme. Accent colour that matches Android's wallpaper colours, or one of red, orange, yellow, green, blue or purple.
 - **In-app updates.** Settings → Updates checks this repo's latest release, downloads it (verifying its SHA-256) and hands it to Android's installer.
-- **Tests**: coming next.
 
 ## Installing
 

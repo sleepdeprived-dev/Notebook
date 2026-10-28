@@ -9,6 +9,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -28,11 +29,24 @@ import com.david.notebook.ui.todo.TodoScreen
 
 private const val SETTINGS_ROUTE = "settings"
 
+/** [startTab]: a tab route to open first instead of Schedule (from a reminder). */
 @Composable
-fun NotebookApp() {
+fun NotebookApp(startTab: String? = null) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
+
+    fun openTab(route: String) {
+        navController.navigate(route) {
+            // Keep a single copy of each tab on the back stack and remember
+            // its state (scroll position, open folder) when switching away.
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
 
     Scaffold(
         // Each screen has its own Scaffold + top bar that handles the status bar,
@@ -44,17 +58,7 @@ fun NotebookApp() {
                     Tab.entries.forEach { tab ->
                         NavigationBarItem(
                             selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true,
-                            onClick = {
-                                navController.navigate(tab.route) {
-                                    // Keep a single copy of each tab on the back stack and remember
-                                    // its state (scroll position, open folder) when switching away.
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { openTab(tab.route) },
                             icon = { Icon(painterResource(tab.icon), contentDescription = null) },
                             label = { Text(stringResource(tab.label)) },
                         )
@@ -77,8 +81,12 @@ fun NotebookApp() {
             }
             coursesGraph(route = Tab.Courses.route, navController = navController)
             composable(Tab.Tests.route) { TestsScreen() }
-            composable(Tab.Todo.route) { TodoScreen() }
+            composable(Tab.Todo.route) { TodoScreen(onOpenTests = { openTab(Tab.Tests.route) }) }
             composable(SETTINGS_ROUTE) { SettingsScreen(onBack = { navController.popBackStack() }) }
         }
+    }
+
+    if (startTab != null && Tab.entries.any { it.route == startTab }) {
+        LaunchedEffect(Unit) { openTab(startTab) }
     }
 }

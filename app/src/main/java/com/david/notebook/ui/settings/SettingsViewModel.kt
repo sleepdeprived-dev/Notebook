@@ -46,6 +46,7 @@ class SettingsViewModel(
 
     fun setThemeMode(mode: ThemeMode) = repository.setThemeMode(mode)
     fun setAccent(accent: Accent) = repository.setAccent(accent)
+    fun setReminders(on: Boolean) = repository.setReminders(on)
 
     fun checkForUpdate() {
         job?.cancel()

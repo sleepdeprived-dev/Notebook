@@ -1,6 +1,5 @@
 package com.david.notebook.ui.todo
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,11 +33,8 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -60,12 +56,23 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.david.notebook.R
+import com.david.notebook.data.tests.AssessmentKind
+import com.david.notebook.data.tests.AssessmentWithSubject
 import com.david.notebook.data.todo.Todo
 import com.david.notebook.data.todo.TodoWithSubject
 import com.david.notebook.ui.components.EmptyState
 import com.david.notebook.ui.components.MenuAction
 import com.david.notebook.ui.components.NotebookTopBar
 import com.david.notebook.ui.components.OverflowMenu
+import com.david.notebook.ui.components.SubjectFilter
+import com.david.notebook.ui.components.SwipeToDelete
+import com.david.notebook.ui.components.formatTime
+import com.david.notebook.ui.components.rememberAskForReminders
+import com.david.notebook.ui.components.subjectsIn
+import com.david.notebook.ui.tests.KindChip
+import com.david.notebook.ui.tests.countdown
+import com.david.notebook.ui.tests.displayTitle
+import com.david.notebook.ui.tests.label
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -77,11 +84,17 @@ private sealed interface Editing {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodoScreen(viewModel: TodoViewModel = viewModel(factory = TodoViewModel.Factory)) {
+fun TodoScreen(
+    onOpenTests: () -> Unit,
+    viewModel: TodoViewModel = viewModel(factory = TodoViewModel.Factory),
+) {
     val todos by viewModel.todos.collectAsStateWithLifecycle()
+    val comingUp by viewModel.comingUp.collectAsStateWithLifecycle()
     val subjects by viewModel.subjects.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<Editing?>(null) }
     var showCompleted by rememberSaveable { mutableStateOf(true) }
+    var subjectFilter by rememberSaveable { mutableStateOf<Long?>(null) }
+    val askForReminders = rememberAskForReminders()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -90,8 +103,19 @@ fun TodoScreen(viewModel: TodoViewModel = viewModel(factory = TodoViewModel.Fact
     val listState = rememberLazyListState()
     val fabExpanded by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
 
-    val open = todos.orEmpty().filterNot { it.todo.done }
-    val completed = todos.orEmpty().filter { it.todo.done }
+    val filterOptions = subjectsIn(
+        todos.orEmpty().map { it.todo.subjectId to it.subjectName } +
+            comingUp.map { it.assessment.subjectId to it.subjectName },
+        { it.first },
+        { it.second },
+    )
+    // A filter on a subject that's no longer in the list shows all.
+    val filter = subjectFilter?.takeIf { id -> filterOptions.any { it.id == id } }
+    val visible = todos.orEmpty().filter { filter == null || it.todo.subjectId == filter }
+    val tests = comingUp.filter { filter == null || it.assessment.subjectId == filter }
+    val open = visible.filterNot { it.todo.done }
+    val completed = visible.filter { it.todo.done }
+    val today = LocalDate.now().toEpochDay()
 
     fun deleteWithUndo(todo: Todo) {
         viewModel.delete(todo)
@@ -138,7 +162,7 @@ fun TodoScreen(viewModel: TodoViewModel = viewModel(factory = TodoViewModel.Fact
     ) { padding ->
         when {
             todos == null -> Unit
-            todos.orEmpty().isEmpty() -> EmptyState(
+            todos.orEmpty().isEmpty() && comingUp.isEmpty() -> EmptyState(
                 icon = R.drawable.ic_check_circle,
                 title = stringResource(R.string.empty_todo_title),
                 message = stringResource(R.string.empty_todo),
@@ -155,6 +179,36 @@ fun TodoScreen(viewModel: TodoViewModel = viewModel(factory = TodoViewModel.Fact
                 ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (filterOptions.size >= 2) {
+                    item(key = "filter") {
+                        SubjectFilter(filterOptions, selected = filter, onSelect = { subjectFilter = it })
+                    }
+                }
+                if (tests.isNotEmpty()) {
+                    item(key = "coming-up") {
+                        Text(
+                            stringResource(R.string.todo_coming_up),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .animateItem()
+                                .padding(start = 4.dp, top = 4.dp),
+                        )
+                    }
+                    items(tests, key = { "test-${it.assessment.id}" }) { test ->
+                        ComingUpCard(test, today, onClick = onOpenTests, modifier = Modifier.animateItem())
+                    }
+                    item(key = "tasks-header") {
+                        Text(
+                            stringResource(R.string.todo_tasks),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .animateItem()
+                                .padding(start = 4.dp, top = 12.dp),
+                        )
+                    }
+                }
                 if (open.isEmpty()) {
                     item(key = "all-done") {
                         Text(
@@ -204,47 +258,25 @@ fun TodoScreen(viewModel: TodoViewModel = viewModel(factory = TodoViewModel.Fact
         Editing.New -> TaskSheet(
             existing = null,
             subjects = subjects,
-            onSave = { title, subjectId, due -> viewModel.save(null, title, subjectId, due); editing = null },
+            onSave = { title, subjectId, due, time ->
+                viewModel.save(null, title, subjectId, due, time)
+                editing = null
+                if (due != null) askForReminders()
+            },
             onDelete = null,
             onDismiss = { editing = null },
         )
         is Editing.Existing -> TaskSheet(
             existing = e.todo,
             subjects = subjects,
-            onSave = { title, subjectId, due -> viewModel.save(e.todo, title, subjectId, due); editing = null },
+            onSave = { title, subjectId, due, time ->
+                viewModel.save(e.todo, title, subjectId, due, time)
+                editing = null
+                if (due != null) askForReminders()
+            },
             onDelete = { editing = null; deleteWithUndo(e.todo) },
             onDismiss = { editing = null },
         )
-    }
-}
-
-/** Swipe a task left to delete it (with Undo in the snackbar). */
-@Composable
-private fun SwipeToDelete(onDelete: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val state = rememberSwipeToDismissBoxState()
-    SwipeToDismissBox(
-        state = state,
-        enableDismissFromStartToEnd = false,
-        onDismiss = { value -> if (value == SwipeToDismissBoxValue.EndToStart) onDelete() },
-        backgroundContent = {
-            Box(
-                contentAlignment = Alignment.CenterEnd,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(horizontal = 24.dp),
-            ) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.delete),
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
-        },
-        modifier = modifier,
-    ) {
-        content()
     }
 }
 
@@ -272,14 +304,21 @@ private fun TaskCard(item: TodoWithSubject, onToggle: (Boolean) -> Unit, onClick
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (todo.dueDate != null || item.subjectName != null) {
+                // A study task's test already says which subject it's for.
+                val test = item.testKind?.let { kind ->
+                    item.testName ?: stringResource(AssessmentKind.entries.find { it.name == kind }?.label() ?: R.string.kind_exam)
+                }
+                if (todo.dueDate != null || item.subjectName != null || test != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.padding(top = 4.dp),
                     ) {
-                        todo.dueDate?.let { DueLabel(it, done = todo.done) }
-                        item.subjectName?.let { SubjectLabel(it, Modifier.weight(1f, fill = false)) }
+                        todo.dueDate?.let { DueLabel(it, todo.time, done = todo.done) }
+                        when {
+                            test != null -> SubjectLabel(test, R.drawable.ic_assignment, Modifier.weight(1f, fill = false))
+                            item.subjectName != null -> SubjectLabel(item.subjectName, R.drawable.ic_school, Modifier.weight(1f, fill = false))
+                        }
                     }
                 }
             }
@@ -288,7 +327,7 @@ private fun TaskCard(item: TodoWithSubject, onToggle: (Boolean) -> Unit, onClick
 }
 
 @Composable
-private fun DueLabel(epochDay: Long, done: Boolean) {
+private fun DueLabel(epochDay: Long, time: Int?, done: Boolean) {
     val due = dueText(epochDay, LocalDate.now())
     val color = when {
         done -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -299,15 +338,19 @@ private fun DueLabel(epochDay: Long, done: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(painterResource(R.drawable.ic_event), contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(4.dp))
-        Text(due.text, style = MaterialTheme.typography.labelLarge, color = color)
+        Text(
+            time?.let { "${due.text} · ${formatTime(it)}" } ?: due.text,
+            style = MaterialTheme.typography.labelLarge,
+            color = color,
+        )
     }
 }
 
 @Composable
-private fun SubjectLabel(name: String, modifier: Modifier = Modifier) {
+private fun SubjectLabel(name: String, icon: Int, modifier: Modifier = Modifier) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Icon(
-            painterResource(R.drawable.ic_school),
+            painterResource(icon),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(16.dp),
@@ -320,6 +363,36 @@ private fun SubjectLabel(name: String, modifier: Modifier = Modifier) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/** A test in the next week: kind, name, countdown. Tapping opens the Tests tab. */
+@Composable
+private fun ComingUpCard(item: AssessmentWithSubject, today: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val days = (item.assessment.date - today).toInt()
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            KindChip(item.assessment.assessmentKind())
+            Spacer(Modifier.width(12.dp))
+            Text(
+                displayTitle(item),
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                countdown(days),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (days <= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 

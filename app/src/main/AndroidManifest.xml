@@ -6,6 +6,17 @@
     <!-- Lets the app hand a downloaded update to Android's installer. The user is
          asked once to allow "Install unknown apps" for Notebook. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Reminders before tests and when tasks are due. Alarms are cleared on reboot,
+         so they're set again when the phone starts. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Exact alarms, so "08:00" means 08:00 and not up to an hour later. Granted at
+         install on Android 13+ (USE_EXACT_ALARM) and by default on 12 (SCHEDULE_EXACT_ALARM);
+         without them reminders fall back to inexact alarms. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
 
     <application
         android:name=".NotebookApplication"
@@ -22,6 +33,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".data.reminders.ReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Lets PDF viewer apps read imported course files (see res/xml/file_paths.xml). -->
         <provider

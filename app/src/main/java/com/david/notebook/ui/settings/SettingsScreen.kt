@@ -26,6 +26,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.david.notebook.data.reminders.ReminderScheduler
+import com.david.notebook.ui.components.rememberAllowNotifications
 import java.io.File
 import com.david.notebook.data.update.Release
 import androidx.compose.ui.text.style.TextOverflow
@@ -130,6 +137,13 @@ fun SettingsScreen(
             }
 
             SettingsCard(
+                title = stringResource(R.string.reminders),
+                caption = stringResource(R.string.reminders_caption),
+            ) {
+                RemindersSection(on = settings.reminders, onChange = viewModel::setReminders)
+            }
+
+            SettingsCard(
                 title = stringResource(R.string.updates),
                 caption = stringResource(R.string.updates_current, viewModel.currentVersion),
             ) {
@@ -168,6 +182,41 @@ private fun SettingsCard(
             Spacer(Modifier.height(16.dp))
             content()
         }
+    }
+}
+
+@Composable
+private fun RemindersSection(on: Boolean, onChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    // Re-checked on return from Android's settings, where it can be switched off.
+    var allowed by remember { mutableStateOf(ReminderScheduler.canNotify(context)) }
+    LifecycleResumeEffect(Unit) {
+        allowed = ReminderScheduler.canNotify(context)
+        onPauseOrDispose {}
+    }
+    val allow = rememberAllowNotifications()
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(R.string.reminders_switch),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(
+            checked = on,
+            onCheckedChange = {
+                onChange(it)
+                if (it && !allowed) allow()
+            },
+        )
+    }
+    if (on && !allowed) {
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.reminders_blocked),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
+        TextButton(onClick = allow) { Text(stringResource(R.string.reminders_allow)) }
     }
 }
 

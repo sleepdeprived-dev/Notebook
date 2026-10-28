@@ -15,7 +15,7 @@
     <string name="empty_files_title">No PDFs here yet</string>
     <string name="empty_files">Tap + to import PDFs from your phone</string>
     <string name="empty_tests_title">No tests or deadlines</string>
-    <string name="empty_tests">Coming soon: tap + to add one</string>
+    <string name="empty_tests">Tap + to add an exam, colloquium or deadline</string>
     <string name="empty_todo_title">Nothing to do</string>
     <string name="empty_todo">Tap + to add a task</string>
 
@@ -106,12 +106,18 @@
     <string name="todo_title">What do you need to do?</string>
     <string name="todo_due">Due</string>
     <string name="todo_subject">Subject</string>
-    <string name="todo_no_subjects">Add subjects in Courses to link tasks to them</string>
-    <string name="todo_clear_due">Remove due date</string>
+    <string name="no_subjects_to_link">Add subjects in Courses to link them here</string>
+    <string name="remove_date">Remove date</string>
+    <string name="pick_time">Pick a time</string>
+    <string name="add_time">Add time</string>
+    <string name="no_time">No time</string>
     <string name="todo_deleted">Task deleted</string>
     <string name="todo_clear_completed">Clear completed</string>
     <string name="todo_completed">Completed (%1$d)</string>
     <string name="todo_all_done">All done! 🎉</string>
+    <string name="todo_coming_up">Coming up this week</string>
+    <string name="todo_tasks">Tasks</string>
+    <string name="filter_all">All</string>
     <string name="due_today">Today</string>
     <string name="due_tomorrow">Tomorrow</string>
     <string name="due_yesterday">Overdue · yesterday</string>
@@ -120,6 +126,47 @@
         <item quantity="one">Overdue · %d day</item>
         <item quantity="other">Overdue · %d days</item>
     </plurals>
+
+    <string name="test_new">New test</string>
+    <string name="test_edit">Edit test</string>
+    <string name="test_title">Name</string>
+    <string name="test_title_optional">Name (optional)</string>
+    <string name="test_when">When</string>
+    <string name="test_notes">Notes (room, topics, what to bring…)</string>
+    <string name="test_deleted">Deleted</string>
+    <string name="test_clear_past">Clear past</string>
+    <string name="test_nothing_upcoming">Nothing coming up 🎉</string>
+    <string name="test_next_up">Next up</string>
+    <string name="test_past">Past (%1$d)</string>
+    <string name="test_grade">Grade</string>
+    <string name="grades_average">Average grade</string>
+    <string name="grades_overall">Overall</string>
+    <string name="test_add_study_task">Add a study task to To Do</string>
+    <string name="study_for">Study for %1$s</string>
+    <string name="study_task_added">Study task added to To Do</string>
+    <string name="kind_exam">Exam</string>
+    <string name="kind_colloquium">Colloquium</string>
+    <string name="kind_deadline">Deadline</string>
+    <string name="countdown_yesterday">Yesterday</string>
+    <plurals name="countdown_in_days">
+        <item quantity="one">in %d day</item>
+        <item quantity="other">in %d days</item>
+    </plurals>
+    <plurals name="countdown_days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+
+    <string name="reminders">Reminders</string>
+    <string name="reminders_caption">The evening before a test and on the morning of it, and when a task is due</string>
+    <string name="reminders_channel_description">Upcoming tests and tasks that are due</string>
+    <string name="reminders_switch">Send reminders</string>
+    <string name="reminders_blocked">Notifications are turned off for Notebook, so reminders can\'t be shown.</string>
+    <string name="reminders_allow">Allow notifications</string>
+    <string name="reminder_test_tomorrow">%1$s tomorrow</string>
+    <string name="reminder_test_today">%1$s today</string>
+    <string name="reminder_task_due_today">Task due today</string>
+    <string name="reminder_task_due_at">Task due at %1$s</string>
 
     <string name="updates">Updates</string>
     <string name="updates_current">You have Notebook %1$s</string>

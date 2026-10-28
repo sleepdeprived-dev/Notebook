@@ -18,6 +18,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val settingsRepository = (application as NotebookApplication).settings
+        // A reminder notification opens the tab it's about.
+        val startTab = if (savedInstanceState == null) intent.getStringExtra(EXTRA_TAB) else null
         setContent {
             val settings by settingsRepository.settings.collectAsStateWithLifecycle()
             val darkTheme = when (settings.themeMode) {
@@ -37,14 +39,16 @@ class MainActivity : ComponentActivity() {
             }
 
             NotebookTheme(darkTheme = darkTheme, accent = settings.accent) {
-                NotebookApp()
+                NotebookApp(startTab = startTab)
             }
         }
     }
 
-    private companion object {
+    companion object {
+        const val EXTRA_TAB = "tab"
+
         // The defaults enableEdgeToEdge() uses for 3-button navigation.
-        val LightScrim = Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
-        val DarkScrim = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
+        private val LightScrim = Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
+        private val DarkScrim = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
     }
 }

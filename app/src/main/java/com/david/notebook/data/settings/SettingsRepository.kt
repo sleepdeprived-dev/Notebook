@@ -25,9 +25,11 @@ enum class Accent {
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.System,
     val accent: Accent = Accent.default,
+    /** Notifications before tests and when tasks are due. */
+    val reminders: Boolean = true,
 )
 
-/** Two small preferences, so SharedPreferences rather than pulling in DataStore. */
+/** A few small preferences, so SharedPreferences rather than pulling in DataStore. */
 class SettingsRepository(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -44,6 +46,19 @@ class SettingsRepository(context: Context) {
         _settings.update { it.copy(accent = accent) }
     }
 
+    fun setReminders(on: Boolean) {
+        prefs.edit { putBoolean(KEY_REMINDERS, on) }
+        _settings.update { it.copy(reminders = on) }
+    }
+
+    /**
+     * Whether Notebook already asked for the notification permission on its own (after
+     * the first test or dated task was saved), so it doesn't ask again on every save.
+     */
+    var askedForNotifications: Boolean
+        get() = prefs.getBoolean(KEY_ASKED_NOTIFICATIONS, false)
+        set(value) = prefs.edit { putBoolean(KEY_ASKED_NOTIFICATIONS, value) }
+
     private fun read() = AppSettings(
         themeMode = prefs.getString(KEY_THEME, null)
             ?.let { name -> ThemeMode.entries.find { it.name == name } }
@@ -51,10 +66,13 @@ class SettingsRepository(context: Context) {
         accent = prefs.getString(KEY_ACCENT, null)
             ?.let { name -> Accent.available.find { it.name == name } }
             ?: Accent.default,
+        reminders = prefs.getBoolean(KEY_REMINDERS, true),
     )
 
     private companion object {
         const val KEY_THEME = "theme_mode"
         const val KEY_ACCENT = "accent"
+        const val KEY_REMINDERS = "reminders"
+        const val KEY_ASKED_NOTIFICATIONS = "asked_notifications"
     }
 }

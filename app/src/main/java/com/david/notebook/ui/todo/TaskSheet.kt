@@ -11,14 +11,11 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -28,7 +25,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,31 +45,38 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.david.notebook.R
 import com.david.notebook.data.todo.Todo
-import java.time.Instant
+import com.david.notebook.ui.components.PickDateDialog
+import com.david.notebook.ui.components.PickTimeDialog
+import com.david.notebook.ui.components.formatTime
+import com.david.notebook.ui.components.SubjectChips
+import com.david.notebook.ui.components.formatDate
+import com.david.notebook.ui.components.SubjectOption
 import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.util.Locale
 
-/** Add or edit a task: title, optional subject, optional due date. */
+/** Add or edit a task: title, optional subject, optional due date and time. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskSheet(
     existing: Todo?,
     subjects: List<SubjectOption>,
-    onSave: (title: String, subjectId: Long?, dueDate: Long?) -> Unit,
+    onSave: (title: String, subjectId: Long?, dueDate: Long?, time: Int?) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     var title by rememberSaveable { mutableStateOf(existing?.title.orEmpty()) }
     var subjectId by rememberSaveable { mutableStateOf(existing?.subjectId) }
     var dueDate by rememberSaveable { mutableStateOf(existing?.dueDate) }
+    var time by rememberSaveable { mutableStateOf(existing?.time) }
     var pickingDate by remember { mutableStateOf(false) }
+    var pickingTime by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val today = LocalDate.now().toEpochDay()
     val canSave = title.isNotBlank()
+    // A time without a date means nothing, so removing the date drops it.
+    fun save() = onSave(title, subjectId, dueDate, time.takeIf { dueDate != null })
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -97,7 +100,7 @@ fun TaskSheet(
                     capitalization = KeyboardCapitalization.Sentences,
                     imeAction = ImeAction.Done,
                 ),
-                keyboardActions = KeyboardActions(onDone = { if (canSave) onSave(title, subjectId, dueDate) }),
+                keyboardActions = KeyboardActions(onDone = { if (canSave) save() }),
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
@@ -130,7 +133,7 @@ fun TaskSheet(
                             trailingIcon = {
                                 Icon(
                                     Icons.Filled.Close,
-                                    contentDescription = stringResource(R.string.todo_clear_due),
+                                    contentDescription = stringResource(R.string.remove_date),
                                     modifier = Modifier
                                         .size(18.dp)
                                         .clickable { dueDate = null },
@@ -148,24 +151,34 @@ fun TaskSheet(
                 }
             }
 
-            SheetLabel(stringResource(R.string.todo_subject))
-            if (subjects.isEmpty()) {
-                Text(
-                    stringResource(R.string.todo_no_subjects),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(subjects, key = { it.id }) { subject ->
-                        FilterChip(
-                            selected = subjectId == subject.id,
-                            onClick = { subjectId = if (subjectId == subject.id) null else subject.id },
-                            label = { Text(subject.name) },
-                        )
-                    }
+            if (dueDate != null) {
+                val chosenTime = time
+                if (chosenTime == null) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { pickingTime = true },
+                        label = { Text(stringResource(R.string.add_time)) },
+                    )
+                } else {
+                    InputChip(
+                        selected = true,
+                        onClick = { pickingTime = true },
+                        label = { Text(formatTime(chosenTime)) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.no_time),
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { time = null },
+                            )
+                        },
+                    )
                 }
             }
+
+            SheetLabel(stringResource(R.string.todo_subject))
+            SubjectChips(subjects, selected = subjectId, onSelect = { subjectId = it })
 
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -175,7 +188,7 @@ fun TaskSheet(
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = { onSave(title, subjectId, dueDate) }, enabled = canSave) {
+                Button(onClick = { save() }, enabled = canSave) {
                     Text(stringResource(R.string.save))
                 }
             }
@@ -188,35 +201,20 @@ fun TaskSheet(
     }
 
     if (pickingDate) {
-        // The picker works in UTC milliseconds at midnight; the task stores a plain day.
-        val state = rememberDatePickerState(
-            initialSelectedDateMillis = (dueDate ?: today).let {
-                LocalDate.ofEpochDay(it).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-            },
+        PickDateDialog(
+            initial = dueDate,
+            onPick = { dueDate = it },
+            onClear = if (dueDate != null) ({ dueDate = null }) else null,
+            onDismiss = { pickingDate = false },
         )
-        DatePickerDialog(
-            onDismissRequest = { pickingDate = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let {
-                        dueDate = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay()
-                    }
-                    pickingDate = false
-                }) { Text(stringResource(R.string.ok)) }
-            },
-            dismissButton = {
-                Row {
-                    if (dueDate != null) {
-                        TextButton(onClick = { dueDate = null; pickingDate = false }) {
-                            Text(stringResource(R.string.todo_clear_due))
-                        }
-                    }
-                    TextButton(onClick = { pickingDate = false }) { Text(stringResource(R.string.cancel)) }
-                }
-            },
-        ) {
-            DatePicker(state = state)
-        }
+    }
+    if (pickingTime) {
+        PickTimeDialog(
+            initial = time,
+            onPick = { time = it },
+            onClear = if (time != null) ({ time = null }) else null,
+            onDismiss = { pickingTime = false },
+        )
     }
 }
 
@@ -224,9 +222,6 @@ fun TaskSheet(
 private fun SheetLabel(text: String) {
     Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
-
-private fun formatDate(epochDay: Long): String =
-    LocalDate.ofEpochDay(epochDay).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
 
 /** How a due date reads on a task card, relative to [today]. */
 data class DueText(val text: String, val overdue: Boolean, val today: Boolean)
